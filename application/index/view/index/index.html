@@ -1,0 +1,263 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="format-detection" content="telephone=no" />
+    <title>沟通中</title>
+    <link rel="stylesheet" type="text/css" href="__STATIC__/newcj/css/themes.css?v=2017129">
+    <link rel="stylesheet" type="text/css" href="__STATIC__/newcj/css/h5app.css">
+    <link rel="stylesheet" type="text/css" href="__STATIC__/newcj/fonts/iconfont.css?v=2016070717">
+    <script src="__STATIC__/newcj/js/jquery.min2.js"></script>
+    <script src="__STATIC__/newcj/js/dist/flexible/flexible_css.debug.js"></script>
+    <script src="__STATIC__/newcj/js/dist/flexible/flexible.debug.js"></script>
+    <script src="__STATIC__/qqFace/js/jquery.qqFace.js"></script>
+    <style>
+        .qqFace{margin-top:-180px;background:#fff;padding:2px;border:1px #dfe6f6 solid;}
+        .qqFace table td{padding:0px;}
+        .qqFace table td img{cursor:pointer;border:1px #fff solid;}
+        .qqFace table td img:hover{border:1px #0066cc solid;}
+    </style>
+</head>
+<body ontouchstart>
+<div class='fui-page-group'>
+<div class='fui-page chatDetail-page'>
+    <div class="chat-header flex">
+        <i class="icon icon-toleft t-48"></i>
+        <span class="shop-titlte t-30"></span>
+        <span class="shop-online t-26"></span>
+        <span class="into-shop"></span>
+    </div>
+    <div class="fui-content navbar" style="padding:1.2rem 0 1.35rem 0;">
+        <div class="chat-content">
+            <p style="display: none;text-align: center;padding-top: 0.5rem" id="more"><a>加载更多</a></p>
+            <p class="chat-time"><span class="time">2018-08-16</span></p>
+        </div>
+    </div>
+    <div class="fix-send flex footer-bar">
+        <i class="icon icon-emoji1 t-50"></i>
+        <input class="send-input t-28" maxlength="200" id="send-input">
+        <input type="file" name="pic" id="file" style="display:none"/>
+        <i class="icon icon-add image_up t-50" style="color: #888;"></i>
+        <span class="send-btn">发送</span>
+    </div>
+</div>
+</div>
+
+<script>
+     var fromId = {$fromId};
+     var toId   =  {$toId};
+     var apiUri = '/api/chat/';
+     var fromHeader = '';
+     var toHeader   = '';
+     var toName     = '';
+     var online     = 0;
+
+     var ws =  new WebSocket("ws://127.0.0.1:8282");
+
+      ws.onmessage = function(e){
+          var message = eval("("+e.data+")");
+          switch(message.type) {
+              case 'init' :
+                  var bind = '{"type":"bind", "fromId":"'+fromId+'"}';
+                  ws.send(bind);
+                  get_header(fromId, toId);
+                  get_name(toId);
+                  load_message(fromId, toId);
+                  var online = '{"type":"online", "toId":"'+toId+'","fromId":"'+fromId+'"}';
+                  ws.send(online);
+                  return;
+              case 'text' :
+                  if(message.fromId == toId) {
+                      $('.chat-content').append('<div class="chat-text section-left flex">'+
+                          '<span class="char-img" style="background-image: url('+toHeader+')"></span>'+
+                          '<span class="text"><i class="icon icon-sanjiao4 t-32"></i>'+replace_em(message.data)+'</span>'+
+                          '</div>');
+                      $(".chat-content").scrollTop(3000);
+                  }
+                  return;
+              case 'save' :
+                  save_message(message);
+                  if(message.isread == 1) {
+                      online = 1;
+                      $(".shop-online").text('在线');
+                  }else {
+                      online = 0;
+                      $(".shop-online").text('不在线');
+                  }
+                  return;
+              case 'online' :
+                  if(message.status == 1) {
+                      online = 1;
+                      $(".shop-online").text('在线');
+                  }else {
+                      online = 0;
+                      $(".shop-online").text('不在线');
+                  }
+                  return;
+              case 'say_img' :
+                  if(message.fromId == toId) {
+                      var imgPath = "__ROOT__/uploads/"+message.imgName;
+                      $('.chat-content').append('<div class="chat-text section-left flex">'+
+                          '<span class="char-img" style="background-image: url('+toHeader+')"></span>'+
+                          '<span class="text"><i class="icon icon-sanjiao4 t-32"></i><img width="120em" height="120em" src="'+imgPath+'"></span>'+
+                          '</div>');
+                      $(".chat-content").scrollTop(3000);
+                  }
+
+          }
+      };
+
+     $(".send-btn").click(function(){
+
+         var text = $(".send-input").val();
+
+         var message = '{"data":"'+text+'", "type":"say","fromId":"'+fromId+'","toId":"'+toId+'"}';
+
+         ws.send(message);
+
+         $('.chat-content').append('<div class="chat-text section-right flex">'+
+             '<span class="text"><i class="icon icon-sanjiao3 t-32"></i>'+replace_em(text)+'</span>'+
+             '<span class="char-img" style="background-image: url('+fromHeader+')"></span>'+
+             '</div>');
+         $(".chat-content").scrollTop(3000);
+
+         $(".send-input").val("");
+     });
+
+     $(".image_up").click(function() {
+        $("#file").click();
+     });
+
+     $("#file").change(function() {
+         formData = new FormData();
+         formData.append("fromId", fromId);
+         formData.append("toId", toId);
+         formData.append("online", online);
+         formData.append("file", $("#file")[0].files[0]);
+         $.ajax({
+             url: apiUri+"uploadImg",
+             type:"post",
+             cache:false,
+             data:formData,
+             dataType:"json",
+             processData:false,
+             contentType:false,
+             success:function(data, status){
+                 if(data.status == 1)
+                     var imgPath = "__ROOT__/uploads/"+data.path;
+                     $('.chat-content').append('<div class="chat-text section-right flex">'+
+                         '<span class="text"><i class="icon icon-sanjiao3 t-32"></i><img width="120em" height="120em" src="'+imgPath+'"></span>'+
+                         '<span class="char-img" style="background-image: url('+fromHeader+')"></span>'+
+                         '</div>');
+                     $('.chat-content').scrollTop(3000);
+                     var message = '{"fromId":"'+fromId+'", "toId":"'+toId+'", "data":"'+data.path+'", "type":"say_img"}';
+                     ws.send(message);
+                     $("#file").val("");
+                 }
+         })
+     });
+
+     $(function(){
+         $('.icon-emoji1').qqFace({
+             assign:'send-input',
+             path:'__STATIC__/qqFace/arclist/'	//表情存放的路径
+         });
+         $(".sub_btn").click(function(){
+             var str = $("#saytext").val();
+             $("#show").html(replace_em(str));
+         });
+     });
+
+     function replace_em(str){
+         str = str.replace(/\</g,'&lt;');
+         str = str.replace(/\>/g,'&gt;');
+         str = str.replace(/\n/g,'<br/>');
+         str = str.replace(/\[em_([0-9]*)\]/g,'<img src="__STATIC__/qqFace/arclist/$1.gif" border="0" />');
+         return str;
+     }
+
+    function save_message(message)
+    {
+        $.ajax({
+            url:apiUri+'saveMessage',
+            data:message,
+            type:'post',
+            dataType: 'json',
+            success: function(res) {
+
+            }
+        })
+    }
+    //获取头像
+    function get_header(fromId, toId)
+    {
+        $.ajax({
+            url:apiUri+'getHeader',
+            data:{'fromId':fromId, 'toId':toId},
+            type:'post',
+            dataType:'json',
+            success:function(res) {
+                fromHeader = res.fromHeader;
+                toHeader   = res.toHeader;
+            }
+        })
+    }
+    //获取对方的姓名
+    function get_name(toId)
+    {
+        $.ajax({
+            url:apiUri+'getName',
+            data:{'toId':toId},
+            type:'post',
+            dataType:'json',
+            success:function(res) {
+                toName = res.nickName;
+                $('.shop-titlte').text("与"+toName+"聊天中...");
+            }
+        })
+    }
+    //初始化数据
+    function load_message(fromId, toId)
+    {
+        $.ajax({
+            url:apiUri+'initData',
+            data:{'fromId':fromId, 'toId':toId},
+            type:'post',
+            dataType:'json',
+            success:function(res) {
+                $.each(res, function(index, value) {
+                    if(value.from_id == fromId) {
+                        if(value.type == 2) {
+                            value.content = "__ROOT__/uploads/"+value.content;
+                            $('.chat-content').append('<div class="chat-text section-right flex">'+
+                                '<span class="text"><i class="icon icon-sanjiao3 t-32"></i><img width="120em" height="120em" src="'+value.content+'"></span>'+
+                                '<span class="char-img" style="background-image: url('+fromHeader+')"></span>'+
+                                '</div>');
+                        }else {
+                            $('.chat-content').append('<div class="chat-text section-right flex">'+
+                                '<span class="text"><i class="icon icon-sanjiao3 t-32"></i>'+replace_em(value.content)+'</span>'+
+                                '<span class="char-img" style="background-image: url('+fromHeader+')"></span>'+
+                                '</div>');
+                        }
+                    }else {
+                        if(value.type == 2) {
+                            value.content = "__ROOT__/uploads/"+value.content;
+                            $('.chat-content').append('<div class="chat-text section-left flex">'+
+                                '<span class="char-img" style="background-image: url('+toHeader+')"></span>'+
+                                '<span class="text"><i class="icon icon-sanjiao4 t-32"></i><img width="120em" height="120em" src="'+value.content+'"></span>'+
+                                '</div>');
+                        }else {
+                            $('.chat-content').append('<div class="chat-text section-left flex">'+
+                                '<span class="char-img" style="background-image: url('+toHeader+')"></span>'+
+                                '<span class="text"><i class="icon icon-sanjiao4 t-32"></i>'+replace_em(value.content)+'</span>'+
+                                '</div>');
+                        }
+                    }
+                });
+                $(".chat-content").scrollTop(3000);
+            }
+        })
+    }
+</script>
+</body>
+</html>
