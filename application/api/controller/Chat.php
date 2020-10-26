@@ -45,11 +45,12 @@ class Chat extends Controller
             })->whereOr(function($query) use($condition) {
                 $query->where($condition);
             })->count();
+
             $result = Db::table('communication')->where(function($query) use($map) {
                 $query->where($map);
             })->whereOr(function($query) use($condition){
                 $query->where($condition);
-            })->limit($count -10 , 10)->select();
+            })->limit($count - 10 > 0 ? $count - 10 : 0 , 10)->select();
             return $result;
         }
     }

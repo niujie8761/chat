@@ -8,21 +8,21 @@ use Lcobucci\JWT\ValidationData;
 
 class Token {
 
-    //生成token
+            //生成token
     public static function createToken()
     {
         $signer  = new Sha256();
         $builder = new Builder();
         $salt    =  (string) "123";
         $token   =  $builder->setIssuer("http://www.apis.gezlife.com")
-                ->setAudience("http://www.apis.gezlfe.net")
-                ->setId("sxs-4f1g23a12aa", true)
-                ->setIssuedAt(time())
-                ->setExpiration(time() + 60)
-                ->set("uid", 123)
-                ->sign($signer, $salt)
-                ->getToken()
-                ->__toString();
+            ->setAudience("http://www.apis.gezlfe.net")
+            ->setId("sxs-4f1g23a12aa", true)
+            ->setIssuedAt(time())
+            ->setExpiration(time() + 60)
+            ->set("uid", 123)
+            ->sign($signer, $salt)
+            ->getToken()
+            ->__toString();
 
         return (string) $token;
     }
